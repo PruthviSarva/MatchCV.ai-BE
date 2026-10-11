@@ -1,0 +1,53 @@
+# Test profile: in-memory H2, no network, no real database, no paid API.
+#
+# The Flyway migrations are PostgreSQL-specific (TIMESTAMPTZ, BIGSERIAL), so
+# tests use Hibernate's generated schema and Flyway is disabled here. The
+# migrations themselves are verified by booting against PostgreSQL, where
+# `ddl-auto: validate` proves the entities and the SQL agree.
+spring:
+  # Deliberately empty: overrides the main config's optional .env import so a
+  # developer's real credentials can never leak into a test run.
+  config:
+    import: ""
+
+  datasource:
+    url: jdbc:h2:mem:tailorresume;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ""
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+
+  flyway:
+    enabled: false
+
+app:
+  jwt:
+    # Test-only key. 32+ bytes so HS256 accepts it.
+    secret: dGVzdC1vbmx5LXNlY3JldC1rZXktZm9yLXRhaWxvci1yZXN1bWUtdGVzdHMhIQ==
+    access-expiration: PT30M
+    refresh-expiration: P30D
+    issuer: tailor-resume
+
+  claude:
+    # No key: tests must never call a paid API. The stub refuses loudly, which
+    # is itself the behaviour one of the tests asserts.
+    api-key: ""
+
+  quota:
+    # Small enough that a test can exhaust the allowance in a few calls.
+    free-monthly: 2
+    pro-monthly: 5
+
+  admin:
+    # Blank password: no bootstrap administrator is seeded. Tests that need one
+    # create it themselves, so a background row can never shift a count that a
+    # test is asserting on.
+    password: ""
+
+logging:
+  level:
+    org.hibernate.SQL: WARN

@@ -1,0 +1,100 @@
+spring:
+  application:
+    name: tailor-resume-be
+
+  # Loads the gitignored .env if present. Deployments inject the same names as
+  # real environment variables instead, so this is optional.
+  config:
+    import: "optional:file:./.env[.properties]"
+
+  datasource:
+    url: ${DATABASE_URL}
+    username: ${DATABASE_USERNAME:neondb_owner}
+    password: ${DATABASE_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      # Neon scales to zero when idle; the first connection after a cold start
+      # can take several seconds. Fail slower than the 30s default allows.
+      connection-timeout: 30000
+      maximum-pool-size: 10
+      # Neon's pooler drops idle connections; recycle before it does.
+      max-lifetime: 300000
+
+  jpa:
+    # Flyway owns the schema. Hibernate only checks that the entities match it,
+    # and must never alter the database itself.
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  servlet:
+    multipart:
+      # A resume is a few hundred KB. The ceiling is generous enough for a
+      # photo-heavy PDF export and nowhere near large enough to be a DoS lever.
+      max-file-size: 10MB
+      max-request-size: 12MB
+
+server:
+  port: ${SERVER_PORT:8091}
+  error:
+    include-message: never
+    include-stacktrace: never
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+# ---------------------------------------------------------------------------
+# Application settings. Every value here is overridable by an environment
+# variable so nothing secret has to live in this file.
+# ---------------------------------------------------------------------------
+app:
+  jwt:
+    # No default: boot fails loudly rather than signing tokens with a key that
+    # is public in the repository.
+    secret: ${JWT_SECRET:}
+    access-expiration: ${JWT_ACCESS_EXPIRATION:PT30M}
+    refresh-expiration: ${JWT_REFRESH_EXPIRATION:P30D}
+    issuer: tailor-resume
+
+  cors:
+    allowed-origin-patterns: ${CORS_ALLOWED_ORIGIN_PATTERNS:}
+
+  claude:
+    # Unset means the stub client: the app boots and refuses tailoring requests
+    # with a clear message rather than failing at startup.
+    api-key: ${CLAUDE_API_KEY:}
+    model: ${CLAUDE_MODEL:claude-opus-5}
+    max-tokens: ${CLAUDE_MAX_TOKENS:24000}
+
+  quota:
+    free-monthly: ${QUOTA_FREE_MONTHLY:3}
+    pro-monthly: ${QUOTA_PRO_MONTHLY:200}
+
+  # The first administrator, created on boot when no admin account exists yet.
+  # A blank password turns seeding off entirely.
+  admin:
+    email: ${ADMIN_EMAIL:admin@matchcv.ai}
+    password: ${ADMIN_PASSWORD:}
+    name: ${ADMIN_NAME:MatchCV Admin}
+
+  upload:
+    max-extracted-characters: ${UPLOAD_MAX_CHARACTERS:60000}
+
+logging:
+  level:
+    com.tailorresume: INFO
