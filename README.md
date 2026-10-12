@@ -31,13 +31,13 @@ Every setting comes from an environment variable. Locally they are read from a
 gitignored `.env`; deployments inject the same names directly. `.env.example`
 lists all of them.
 
-Boot fails fast if `DATABASE_URL`, `DATABASE_PASSWORD`, or `JWT_SECRET` are
+Boot fails fast if `DB_URL`, `DATABASE_PASSWORD`, or `JWT_SECRET` are
 missing — these have no defaults on purpose, so the app can never run on
 credentials that are public in this repository.
 
 | Variable | Required | Notes |
 | --- | --- | --- |
-| `DATABASE_URL` | yes | JDBC URL, e.g. `jdbc:postgresql://host/neondb?sslmode=require` |
+| `DB_URL` | yes | JDBC URL, e.g. `jdbc:postgresql://host/neondb?sslmode=require` |
 | `DATABASE_USERNAME` | no | defaults to `neondb_owner` |
 | `DATABASE_PASSWORD` | yes | |
 | `JWT_SECRET` | yes | must decode to ≥32 bytes for HS256: `openssl rand -base64 48` |
