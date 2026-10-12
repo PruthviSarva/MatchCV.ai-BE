@@ -1,0 +1,23 @@
+# Keeps the build context small and, more importantly, keeps secrets out of it.
+# `COPY pom.xml` / `COPY src` are narrow already, but the context is still
+# uploaded to the daemon and anything in it can land in a layer by accident.
+
+.env
+.env.*
+!.env.example
+
+target/
+.git/
+.gitignore
+.idea/
+.vscode/
+*.iml
+*.iws
+*.ipr
+
+Dockerfile
+.dockerignore
+README.md
+
+.DS_Store
+Thumbs.db

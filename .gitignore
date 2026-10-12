@@ -3,8 +3,12 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 
-# Secrets. .env.example is committed; .env never is.
+# Secrets. Everything .env* is ignored — including ad-hoc copies like
+# .env.local or .env.bak, which a bare `.env` rule would have let through —
+# and .env.example is re-included because it holds only placeholders.
 .env
+.env.*
+!.env.example
 
 ### IntelliJ IDEA ###
 .idea/

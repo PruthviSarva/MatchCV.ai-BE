@@ -31,13 +31,13 @@ Every setting comes from an environment variable. Locally they are read from a
 gitignored `.env`; deployments inject the same names directly. `.env.example`
 lists all of them.
 
-Boot fails fast if `DB_URL`, `DATABASE_PASSWORD`, or `JWT_SECRET` are
+Boot fails fast if `DATABASE_URL`, `DATABASE_PASSWORD`, or `JWT_SECRET` are
 missing — these have no defaults on purpose, so the app can never run on
 credentials that are public in this repository.
 
 | Variable | Required | Notes |
 | --- | --- | --- |
-| `DB_URL` | yes | JDBC URL, e.g. `jdbc:postgresql://host/neondb?sslmode=require` |
+| `DATABASE_URL` | yes | **JDBC** URL, e.g. `jdbc:postgresql://host/neondb?sslmode=require` — not the `postgresql://user:pass@host/db` form Neon's dashboard shows |
 | `DATABASE_USERNAME` | no | defaults to `neondb_owner` |
 | `DATABASE_PASSWORD` | yes | |
 | `JWT_SECRET` | yes | must decode to ≥32 bytes for HS256: `openssl rand -base64 48` |
@@ -45,7 +45,61 @@ credentials that are public in this repository.
 | `CLAUDE_MODEL` | no | defaults to `claude-opus-5` |
 | `CORS_ALLOWED_ORIGIN_PATTERNS` | no | defaults to localhost only; set the real origin in production |
 | `ADMIN_PASSWORD` | no | blank disables bootstrap-admin seeding entirely |
-| `SERVER_PORT` | no | defaults to `8091` |
+| `PORT` | no | injected by Render and other platforms; takes precedence over `SERVER_PORT` |
+| `SERVER_PORT` | no | local fallback, defaults to `8091` |
+
+## Deployment (Docker)
+
+The committed `Dockerfile` is a two-stage build: Maven plus the JDK compile the
+jar in the first stage, and only a JRE and that jar reach the shipped image.
+Nothing Node-related is involved — the container's entrypoint is `java -jar`.
+
+```bash
+docker build -t matchcv-backend .
+docker run -p 8091:8091 --env-file .env matchcv-backend
+```
+
+The listener follows the platform: `server.port` is `${PORT:${SERVER_PORT:8091}}`,
+so an injected `PORT` wins, `SERVER_PORT` is the local override, and 8091 is the
+fallback. The port is never hardcoded in the image.
+
+### Render
+
+Render has no Java runtime for this service shape, so the service must be a
+**Docker** web service. A service created as Node will try to run `start` and
+exit 127.
+
+| Setting | Value |
+| --- | --- |
+| Language / Runtime | `Docker` |
+| Dockerfile Path | `./Dockerfile` |
+| Docker Build Context Directory | `.` (the directory holding `pom.xml`) |
+| Build Command | leave blank |
+| Start Command | **leave blank** — the image's `ENTRYPOINT` starts the app |
+| Health Check Path | `/actuator/health` |
+
+`/actuator/health` is the only public health route: `SecurityConfig` permits
+that exact path, so `/actuator/health/liveness` and `/readiness` answer 401 and
+cannot be used as a probe. It includes the datasource check, so a cold Neon
+instance can make the first probe slow — which is accurate, since the service
+is not usable without the database.
+
+Environment variables to set in Render (values from Neon and the Anthropic
+console; never commit them):
+
+```
+DATABASE_URL                  jdbc:postgresql://... (JDBC form, see above)
+DATABASE_PASSWORD
+JWT_SECRET                    openssl rand -base64 48
+DATABASE_USERNAME             only if not neondb_owner
+CLAUDE_API_KEY                optional; unset means tailoring refuses, app still boots
+CORS_ALLOWED_ORIGIN_PATTERNS  the Vercel origin — without it only localhost is allowed
+ADMIN_PASSWORD                only to seed the first admin; blank disables seeding
+```
+
+Flyway owns the schema and runs on startup, so a deploy migrates Neon itself.
+`ddl-auto` stays `validate` — never `update` — so a mismatch fails the boot
+instead of altering the production database.
 
 ## API
 
