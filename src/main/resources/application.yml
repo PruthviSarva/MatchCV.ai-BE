@@ -8,7 +8,7 @@ spring:
     import: "optional:file:./.env[.properties]"
 
   datasource:
-    url: ${DB_URL}
+    url: ${DATABASE_URL}
     username: ${DATABASE_USERNAME:neondb_owner}
     password: ${DATABASE_PASSWORD}
     driver-class-name: org.postgresql.Driver
@@ -44,7 +44,7 @@ spring:
       max-request-size: 12MB
 
 server:
-  port: ${SERVER_PORT:8091}
+  port: ${PORT:${SERVER_PORT:8091}}
   error:
     include-message: never
     include-stacktrace: never
